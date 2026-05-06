@@ -1,709 +1,719 @@
-# Bliss Courier — Complete Project Documentation
-### Spring Boot + Angular | JWT Security | Presentation Guide
+# Bliss Courier — Full Stack Courier Management System
+
+> **Stack:** Spring Boot 3 · Angular 16 · MySQL · Spring Security · JWT
 
 ---
 
-## 1. PROJECT OVERVIEW
+## Table of Contents
 
-**Bliss Courier** is a full-stack Courier Management System built with:
+1. [Project Overview](#1-project-overview)
+2. [Tech Stack](#2-tech-stack)
+3. [Project Structure](#3-project-structure)
+4. [Getting Started](#4-getting-started)
+5. [Security Architecture](#5-security-architecture)
+6. [Core Features](#6-core-features)
+7. [Invoice & Billing System](#7-invoice--billing-system) ← main topic
+8. [API Reference](#8-api-reference)
+9. [Database Schema](#9-database-schema)
+10. [Role-Based Access Control](#10-role-based-access-control)
+11. [Frontend Architecture](#11-frontend-architecture)
 
-| Layer | Technology |
-|---|---|
-| Backend | Spring Boot 3, Spring Security, Spring Data JPA |
-| Frontend | Angular 15+, Angular Material, Bootstrap 5 |
-| Database | MySQL |
-| Auth | JWT (JSON Web Tokens) with HMAC-SHA256 |
-| Build | Maven (backend), npm (frontend) |
+---
 
-**What it does:**
+## 1. Project Overview
+
+Bliss Courier is a full-stack **Courier Management System** that allows businesses to:
+
 - Register and manage courier companies
-- Add parcels and link them to companies
-- Track parcels by city, status, tracking number, date range, weight
-- Auto-calculate delivery charges based on weight and service type
-- Role-based access: ADMIN can write data, USER can only read
+- Create and track parcels end-to-end
+- Auto-generate invoices with itemised pricing
+- Manage billing status (Paid / Unpaid)
+- Secure every operation with JWT-based role access
+
+The system has two user roles:
+
+| Role | What they can do |
+|------|-----------------|
+| **ADMIN** | Full access — create companies, parcels, generate invoices, mark payments |
+| **USER** | Read-only — view companies and parcels |
 
 ---
 
-## 2. PROJECT STRUCTURE
+## 2. Tech Stack
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Backend framework | Spring Boot | 3.5.x |
+| Security | Spring Security + JWT (jjwt) | 0.11.5 |
+| ORM | Spring Data JPA + Hibernate | 6.x |
+| Database | MySQL | 8.x |
+| Frontend framework | Angular | 16+ |
+| UI components | Angular Material + Bootstrap | 5.x |
+| HTTP client | Angular HttpClient | — |
+| Build tool (backend) | Maven | 3.x |
+| Build tool (frontend) | npm + Angular CLI | — |
+
+---
+
+## 3. Project Structure
 
 ```
-Bliss Courier
-├── Backend  (Spring Boot — port 4004)
-│   ├── controller/
-│   │   ├── CourierCompanyController.java
-│   │   └── ParcelController.java
-│   ├── service/
-│   │   ├── ICourierCompanyService.java
-│   │   ├── CourierCompanyService.java
-│   │   ├── IParcelService.java
-│   │   └── ParcelService.java
-│   ├── model/
-│   │   ├── CourierCompany.java
-│   │   └── Parcel.java
-│   ├── repository/
-│   │   ├── CourierRepository.java
-│   │   └── ParcelRepository.java
-│   ├── exception/
-│   │   ├── GlobalExceptionHandler.java
-│   │   ├── InvalidCourierCompanyException.java
-│   │   └── InvalidParcelException.java
-│   └── security/
-│       ├── config/SecurityConfig.java        ← Spring Security rules
-│       ├── jwt/JwtUtil.java                  ← Token generation & validation
-│       ├── jwt/JwtFilter.java                ← Intercepts every HTTP request
-│       ├── model/AppUser.java                ← User entity
-│       ├── repository/UserRepository.java
-│       ├── service/CustomUserDetailsService.java
-│       └── controller/AuthController.java    ← /auth/register, /auth/login
+workspace/
+├── Bliss-Courier-Level1_212/blisscourier/     ← Spring Boot backend
+│   └── src/main/java/com/example/courier/
+│       ├── controller/
+│       │   ├── CourierCompanyController.java
+│       │   ├── ParcelController.java
+│       │   └── InvoiceController.java          ← Invoice API
+│       ├── service/
+│       │   ├── CourierCompanyService.java
+│       │   ├── ParcelService.java
+│       │   └── InvoiceService.java             ← Pricing logic
+│       ├── model/
+│       │   ├── CourierCompany.java
+│       │   ├── Parcel.java
+│       │   └── Invoice.java                    ← Invoice entity
+│       ├── repository/
+│       │   ├── CourierRepository.java
+│       │   ├── ParcelRepository.java
+│       │   └── InvoiceRepository.java
+│       ├── exception/
+│       │   ├── GlobalExceptionHandler.java
+│       │   ├── InvalidCourierCompanyException.java
+│       │   └── InvalidParcelException.java
+│       └── security/
+│           ├── config/SecurityConfig.java
+│           ├── jwt/JwtUtil.java
+│           ├── jwt/JwtFilter.java
+│           ├── model/AppUser.java
+│           ├── repository/UserRepository.java
+│           ├── service/CustomUserDetailsService.java
+│           └── controller/AuthController.java
 │
-└── Frontend (Angular — port 4200)
-    ├── landing/          ← Public landing page (no login needed)
-    ├── login/            ← Login form
-    ├── register/         ← Register form
-    ├── home/             ← Post-login dashboard
-    ├── add-company/      ← ADMIN only
-    ├── add-parcel/       ← ADMIN only
-    ├── view-companies/   ← All users
-    ├── view-parcels/     ← All users
-    ├── guard/
-    │   ├── auth.guard.ts     ← Blocks unauthenticated users
-    │   └── role.guard.ts     ← Blocks non-admin users
-    ├── interceptor/
-    │   └── auth.interceptor.ts  ← Attaches JWT to every HTTP request
-    └── service/
-        ├── auth.service.ts      ← Login, register, token storage
-        └── parcel.service.ts    ← Parcel API calls
+└── BlissCourier/                               ← Angular frontend
+    └── src/app/
+        ├── landing/          ← Public landing page
+        ├── login/
+        ├── register/
+        ├── home/             ← Post-login dashboard
+        ├── add-company/      ← ADMIN only
+        ├── add-parcel/       ← ADMIN only
+        ├── view-companies/
+        ├── view-parcels/     ← Has "View Invoice" button
+        ├── invoice/          ← Single invoice view + generate
+        ├── all-invoices/     ← Admin invoice dashboard
+        ├── model/
+        │   ├── parcel.model.ts
+        │   └── invoice.model.ts
+        ├── service/
+        │   ├── auth.service.ts
+        │   ├── parcel.service.ts
+        │   └── invoice.service.ts
+        ├── guard/
+        │   ├── auth.guard.ts
+        │   └── role.guard.ts
+        └── interceptor/
+            └── auth.interceptor.ts
 ```
 
 ---
 
-## 3. COMPLETE APPLICATION FLOW
+## 4. Getting Started
 
-```
-User opens browser
-        │
-        ▼
-  [ / ] Landing Page  ──────────────────────────────────────────────
-        │                                                           │
-   Click Login                                               Click Register
-        │                                                           │
-        ▼                                                           ▼
-  [ /login ]                                               [ /register ]
-  POST /auth/login                                       POST /auth/register
-        │                                                           │
-   JWT returned                                           User saved to DB
-   Stored in localStorage                                           │
-        │                                                           │
-        ▼                                                           │
-  AuthGuard checks token ◄──────────────────────────────────────────
-        │
-   Token valid?
-   YES → navigate to /home
-   NO  → redirect to /login
-        │
-        ▼
-  [ /home ] Dashboard
-        │
-   ┌────┴────────────────────────────────┐
-   │                                     │
-ADMIN role                           USER role
-   │                                     │
-   ├── /add-company  (POST)              ├── /view-companies (GET)
-   ├── /add-parcel   (POST)              └── /view-parcels   (GET)
-   ├── /view-companies (GET)
-   └── /view-parcels   (GET)
+### Prerequisites
+- Java 17+
+- Node.js 18+
+- MySQL 8 running locally
+- Maven (or use the included `mvnw` wrapper)
+
+### Backend
+
+```bash
+cd Bliss-Courier-Level1_212/blisscourier
+./mvnw spring-boot:run
 ```
 
----
+Runs on **http://localhost:4004**
 
-## 4. SECURITY ARCHITECTURE — THE FULL PICTURE
-
-This is the most important section for your presentation.
-
-### 4.1 Security Components Map
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        SPRING SECURITY CHAIN                    │
-│                                                                 │
-│  HTTP Request                                                   │
-│      │                                                          │
-│      ▼                                                          │
-│  ┌─────────────┐                                                │
-│  │  JwtFilter  │  ← Runs BEFORE every request                  │
-│  │             │    Reads "Authorization: Bearer <token>"       │
-│  │             │    Validates token with JwtUtil                │
-│  │             │    Loads user from CustomUserDetailsService    │
-│  │             │    Sets Authentication in SecurityContext      │
-│  └──────┬──────┘                                                │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌──────────────────┐                                           │
-│  │  SecurityConfig  │  ← Checks rules:                         │
-│  │  (FilterChain)   │    /auth/** → permitAll                   │
-│  │                  │    GET /**  → ADMIN or USER               │
-│  │                  │    POST /** → ADMIN only                  │
-│  │                  │    PUT /**  → ADMIN only                  │
-│  └──────┬───────────┘                                           │
-│         │                                                       │
-│         ▼                                                       │
-│    Controller (if allowed)                                      │
-└─────────────────────────────────────────────────────────────────┘
+Database config in `src/main/resources/application.properties`:
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/blisscourier?createDatabaseIfNotExist=true
+spring.datasource.username=root
+spring.datasource.password=<your_password>
+spring.jpa.hibernate.ddl-auto=create
+server.port=4004
+jwt.secret=bliss-courier-secret-key-please-change-to-32-bytes-min
+jwt.expiration.ms=3600000
 ```
 
-### 4.2 JWT Token Flow — Step by Step
+### Frontend
 
+```bash
+cd BlissCourier
+npm install
+npm start
 ```
-REGISTRATION
-─────────────────────────────────────────────────────
-Angular          →  POST /auth/register
-                    { email, password, role }
-                         │
-                    AuthController
-                         │
-                    BCryptPasswordEncoder.encode(password)
-                         │
-                    AppUser saved to MySQL
-                         │
-                    Returns saved AppUser
 
+Runs on **http://localhost:4200**
 
-LOGIN
-─────────────────────────────────────────────────────
-Angular          →  POST /auth/login
-                    { email, password }
-                         │
-                    AuthController
-                         │
-                    AuthenticationManager.authenticate()
-                         │
-                    CustomUserDetailsService.loadUserByUsername()
-                         │
-                    BCrypt compares hashed password
-                         │
-                    JwtUtil.generateToken(email, role)
-                         │
-                    Returns { email, token, role }
-                         │
-Angular          ←  Stores token in localStorage
+### First-time Admin Setup
 
+Register an admin account via API (the UI register form creates USER by default):
 
-AUTHENTICATED REQUEST
-─────────────────────────────────────────────────────
-Angular          →  GET /parcels/123
-                    Header: Authorization: Bearer eyJhbGci...
-                         │
-                    JwtFilter intercepts
-                         │
-                    JwtUtil.isTokenValid()  → checks signature
-                    JwtUtil.isTokenExpired() → checks expiry
-                    JwtUtil.extractUsername() → gets email
-                         │
-                    CustomUserDetailsService.loadUserByUsername(email)
-                         │
-                    SecurityContext.setAuthentication(user)
-                         │
-                    SecurityConfig checks role
-                         │
-                    Controller executes
-                         │
-Angular          ←  Response data
+```bash
+curl -X POST http://localhost:4004/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@bliss.com","password":"Admin@123","role":"ADMIN"}'
 ```
 
 ---
 
-## 5. EACH SECURITY CLASS EXPLAINED
+## 5. Security Architecture
 
-### 5.1 `AppUser.java` — The User Entity
+### How JWT Security Works
+
+```
+1. User logs in → POST /auth/login
+2. Server validates credentials with BCrypt
+3. Server generates JWT token (signed with HMAC-SHA256)
+4. Token returned to Angular → stored in localStorage
+5. Every subsequent request:
+   Angular AuthInterceptor adds:  Authorization: Bearer <token>
+6. JwtFilter on backend:
+   - Reads the header
+   - Validates signature + expiry
+   - Loads user from DB
+   - Sets Authentication in SecurityContextHolder
+7. SecurityConfig checks role against the URL
+8. Controller executes if allowed
+```
+
+### Key Security Classes
+
+| Class | Role |
+|-------|------|
+| `JwtUtil` | Generates and validates JWT tokens using HMAC-SHA256 |
+| `JwtFilter` | Intercepts every HTTP request, validates token, sets auth context |
+| `SecurityConfig` | Defines URL-level access rules, CORS, stateless session policy |
+| `CustomUserDetailsService` | Loads user from DB for Spring Security |
+| `AuthController` | Handles `/auth/register` and `/auth/login` |
+| `AuthInterceptor` (Angular) | Automatically attaches JWT to every HTTP request |
+| `AuthGuard` (Angular) | Blocks unauthenticated route navigation |
+| `RoleGuard` (Angular) | Blocks non-admin route navigation |
+
+### URL Security Rules
+
+```java
+/auth/**              → Public (no token needed)
+/api/invoice/**       → ADMIN only
+GET  /**              → ADMIN or USER
+POST /**              → ADMIN only
+PUT  /**              → ADMIN only
+DELETE /**            → ADMIN only
+```
+
+---
+
+## 6. Core Features
+
+### Courier Company Management
+- Add companies with name, location, contact, rating, service type
+- View all companies in a searchable table
+
+### Parcel Management
+- Add parcels linked to a company
+- Fields: parcel ID, tracking number, sender, receiver, city, weight, service type, status, dates
+- Auto-calculates delivery charge on creation
+- Duplicate parcel ID check — returns 409 Conflict if ID already exists
+- Update delivery status (Pending → In Transit → Delivered → Cancelled)
+- Search by: parcel ID, tracking number, city, status, date range
+
+---
+
+## 7. Invoice & Billing System
+
+This is the most recently added feature. It provides complete billing management for parcels, accessible only to ADMIN users.
+
+---
+
+### 7.1 What is the Invoice System?
+
+Every parcel can have one invoice. The invoice captures:
+- The parcel it belongs to (one-to-one relationship)
+- Distance of delivery in km
+- Delivery type (STANDARD or EXPRESS)
+- An itemised price breakdown
+- Payment status (PAID / UNPAID)
+- Payment method (CASH / ONLINE)
+- Timestamp of when it was generated
+
+Invoices are displayed entirely on the UI — no PDF generation.
+
+---
+
+### 7.2 Pricing Formula
+
+```
+base_price       = 50
+weight_charge    = weight (kg)  × 10
+distance_charge  = distance (km) × 5
+delivery_charge  = EXPRESS → 100  |  STANDARD → 0
+
+total_amount = base_price + weight_charge + distance_charge + delivery_charge
+```
+
+**Example — 5 kg parcel, 100 km, EXPRESS:**
+
+| Component | Calculation | Amount |
+|-----------|------------|--------|
+| Base Price | flat | ₹50.00 |
+| Weight Charge | 5 kg × ₹10 | ₹50.00 |
+| Distance Charge | 100 km × ₹5 | ₹500.00 |
+| Delivery Surcharge | EXPRESS | ₹100.00 |
+| **Total** | | **₹700.00** |
+
+---
+
+### 7.3 Invoice Entity (Database)
+
 ```java
 @Entity
-public class AppUser {
+public class Invoice {
     @Id @GeneratedValue
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String email;       // used as username
+    @OneToOne
+    @JoinColumn(name = "parcel_id", unique = true)
+    private Parcel parcel;           // FK to parcel table
 
-    private String password;    // BCrypt hashed — never plain text
-    private String role;        // "ROLE_ADMIN" or "ROLE_USER"
+    private Double weight;           // copied from parcel at generation time
+    private Double distance;         // provided at invoice generation
+    private DeliveryType deliveryType;   // STANDARD or EXPRESS
+
+    private Double basePrice;        // always 50
+    private Double weightCharge;     // weight × 10
+    private Double distanceCharge;   // distance × 5
+    private Double deliveryCharge;   // 100 if EXPRESS, else 0
+    private Double totalAmount;      // sum of all above
+
+    private PaymentStatus paymentStatus;  // PAID or UNPAID
+    private PaymentMethod paymentMethod;  // CASH or ONLINE
+    private LocalDateTime createdAt;
 }
 ```
-**Key point:** Password is NEVER stored as plain text. BCrypt adds a random salt and hashes it.
+
+**Relationship:** `Invoice` has a `@OneToOne` with `Parcel`. The `unique = true` constraint on `parcel_id` ensures one parcel can only ever have one invoice.
 
 ---
 
-### 5.2 `JwtUtil.java` — Token Factory
-Responsible for creating and reading JWT tokens.
+### 7.4 Backend — Service Layer (InvoiceService)
+
+The service is the brain of the invoice system. It handles:
+
+**`generateInvoice(parcelId, distance, deliveryType, paymentMethod)`**
 
 ```
-Token Structure (3 parts separated by dots):
-eyJhbGciOiJIUzI1NiJ9   ← Header  (algorithm: HS256)
-.
-eyJzdWIiOiJhZG1pbkBibGlzcy5jb20iLCJyb2xlIjoiUk9MRV9BRE1JTiJ9
-                        ← Payload (subject=email, role, iat, exp)
-.
-SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
-                        ← Signature (HMAC-SHA256 with secret key)
+1. Check if invoice already exists for this parcel
+   → If yes, return existing invoice (idempotent — safe to call twice)
+2. Fetch parcel from DB by parcelId
+   → Throw InvalidParcelException if not found (404)
+3. Read weight from the parcel
+4. Apply pricing formula:
+   weightCharge   = weight × 10
+   distanceCharge = distance × 5
+   deliveryCharge = EXPRESS ? 100 : 0
+   totalAmount    = 50 + weightCharge + distanceCharge + deliveryCharge
+5. Build Invoice object with all fields
+6. Set paymentStatus = UNPAID (default)
+7. Set createdAt = now
+8. Save to DB and return
 ```
 
-**What it does:**
-- `generateToken(email, role)` → builds JWT, signs with HMAC-SHA256, sets 1hr expiry
-- `isTokenValid(token)` → verifies signature hasn't been tampered
-- `isTokenExpired(token)` → checks expiry date
-- `extractUsername(token)` → reads email from payload
-- `extractRole(token)` → reads role from payload
+**`getInvoiceByParcelId(parcelId)`**
+- Queries `InvoiceRepository.findByParcel_ParcelId(parcelId)`
+- Throws `InvalidParcelException` (404) if not found
 
-**Secret key** is in `application.properties`:
-```properties
-jwt.secret=bliss-courier-secret-key-please-change-to-32-bytes-min
-jwt.expiration.ms=3600000   # 1 hour
+**`getAllInvoices()`**
+- Returns all invoices — admin dashboard use
+
+**`markAsPaid(invoiceId, paymentMethod)`**
+- Finds invoice by ID
+- Sets `paymentStatus = PAID`
+- Updates payment method if provided
+- Saves and returns updated invoice
+
+---
+
+### 7.5 Backend — Controller (InvoiceController)
+
+Base path: `/api/invoice`
+
+```
+POST   /api/invoice/generate/{parcelId}   → Generate invoice
+GET    /api/invoice/{parcelId}            → Get invoice by parcel ID
+GET    /api/invoice/all                   → Get all invoices (admin)
+PUT    /api/invoice/pay/{invoiceId}       → Mark invoice as paid
+```
+
+All endpoints are secured — require `ROLE_ADMIN` (enforced in `SecurityConfig`).
+
+**Generate Invoice — Request Body:**
+```json
+{
+  "distance": "120",
+  "deliveryType": "EXPRESS",
+  "paymentMethod": "ONLINE"
+}
+```
+
+**Generate Invoice — Response:**
+```json
+{
+  "id": 1,
+  "parcel": {
+    "parcelId": "1001",
+    "senderName": "Rahul",
+    "receiverName": "Priya",
+    "destinationCity": "Mumbai",
+    "weight": 5.0,
+    "courierCompany": { "companyName": "SpeedEx" }
+  },
+  "weight": 5.0,
+  "distance": 120.0,
+  "deliveryType": "EXPRESS",
+  "basePrice": 50.0,
+  "weightCharge": 50.0,
+  "distanceCharge": 600.0,
+  "deliveryCharge": 100.0,
+  "totalAmount": 800.0,
+  "paymentStatus": "UNPAID",
+  "paymentMethod": "ONLINE",
+  "createdAt": "2025-05-06T10:30:00"
+}
 ```
 
 ---
 
-### 5.3 `JwtFilter.java` — The Gatekeeper
-Extends `OncePerRequestFilter` — runs exactly once per HTTP request.
-
-```
-Every request hits this filter FIRST:
-
-1. Read header:  Authorization: Bearer <token>
-2. Extract token (remove "Bearer " prefix)
-3. Validate token with JwtUtil
-4. Extract email from token
-5. Load full UserDetails from DB (CustomUserDetailsService)
-6. Create UsernamePasswordAuthenticationToken
-7. Put it in SecurityContextHolder
-8. Pass request to next filter/controller
-
-If no token or invalid token:
-→ SecurityContext stays empty
-→ SecurityConfig will reject the request (401 Unauthorized)
-
-Skip filter for /auth/** routes (login/register don't need a token)
-```
-
----
-
-### 5.4 `CustomUserDetailsService.java` — User Loader
-Spring Security calls this to load user details during authentication.
+### 7.6 Repository — InvoiceRepository
 
 ```java
-loadUserByUsername(email)
-    → queries UserRepository.findByEmail(email)
-    → returns Spring Security User object with:
-       - email (as username)
-       - hashed password
-       - List of GrantedAuthority ["ROLE_ADMIN"] or ["ROLE_USER"]
+public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
+    Optional<Invoice> findByParcel_ParcelId(String parcelId);
+    boolean existsByParcel_ParcelId(String parcelId);
+}
 ```
 
-**Why it matters:** Spring Security uses this during login to compare the submitted password against the stored BCrypt hash.
+Spring Data JPA auto-generates the SQL for these methods using the `_` notation to traverse the `parcel` relationship and query by `parcelId`.
 
 ---
 
-### 5.5 `SecurityConfig.java` — The Rule Book
-Defines what is allowed and what is not.
+### 7.7 Frontend — Invoice Component (`/invoice/:parcelId`)
 
-```java
-// CSRF disabled — safe because we use stateless JWT, not cookies
-csrf.disable()
+**Flow when admin clicks "View Invoice" on a parcel:**
 
-// Sessions disabled — JWT is stateless, no server-side session
-SessionCreationPolicy.STATELESS
-
-// URL rules:
-/auth/**        → anyone (no token needed)
-GET  /**        → ADMIN or USER (needs valid token)
-POST /**        → ADMIN only
-PUT  /**        → ADMIN only
-DELETE /**      → ADMIN only
-
-// CORS — allows Angular (localhost:4200) to call the API
-allowedOrigins: ["http://localhost:4200"]
-allowedMethods: GET, POST, PUT, DELETE, OPTIONS
-
-// Custom error responses:
-401 Unauthorized → "Missing or invalid JWT"
-403 Forbidden    → "You do not have permission"
 ```
+1. Navigate to /invoice/:parcelId
+2. InvoiceComponent.ngOnInit() fires
+3. Calls InvoiceService.getByParcelId(parcelId)
+   → GET /api/invoice/{parcelId}
 
----
+   If 404 (no invoice yet):
+     → Show "Generate Invoice" form
+     → Admin enters: distance, delivery type, payment method
+     → Click "Generate Invoice"
+     → POST /api/invoice/generate/{parcelId}
+     → Invoice displayed
 
-### 5.6 `AuthController.java` — Register & Login Endpoints
+   If 200 (invoice exists):
+     → Display invoice card immediately
 
-**Register flow:**
-```
-POST /auth/register { email, password, role }
-    │
-    ├── Check if email already exists → throw RuntimeException if yes
-    ├── BCryptPasswordEncoder.encode(password)
-    ├── Prefix role: "ADMIN" → "ROLE_ADMIN"
-    └── Save AppUser to DB → return saved user
-```
-
-**Login flow:**
-```
-POST /auth/login { email, password }
-    │
-    ├── AuthenticationManager.authenticate()
-    │       └── calls CustomUserDetailsService.loadUserByUsername()
-    │               └── BCrypt.matches(rawPassword, hashedPassword)
-    │
-    ├── If wrong password → AuthenticationException → 401
-    │
-    ├── JwtUtil.generateToken(email, role)
-    └── Return { email, token, role }
+4. Invoice card shows:
+   - Parcel details (ID, company, sender, receiver, city, status)
+   - Price breakdown table (base, weight, distance, surcharge, total)
+   - Payment status badge (PAID / UNPAID)
+   - "Mark as Paid" button if UNPAID
+   - "Print" button (browser print, hides UI chrome)
 ```
 
 ---
 
-## 6. FRONTEND SECURITY — ANGULAR SIDE
+### 7.8 Frontend — All Invoices Component (`/invoices`)
 
-### 6.1 `AuthService` — Token Manager
-```
-login(email, password)
-    → POST /auth/login
-    → on success: store token in localStorage["bliss_token"]
-    → store user info in localStorage["bliss_current_user"]
+Admin dashboard showing all invoices with:
 
-logout()
-    → localStorage.clear()
+**Analytics cards (live, updates with filters):**
+- Total Invoices count
+- Total Revenue (sum of all totalAmount)
+- Paid count
+- Unpaid count
+- Express count
 
-isAuthenticated()
-    → checks if token exists in localStorage
+**Filters:**
+- Search by Parcel ID
+- Filter by Payment Status (All / Paid / Unpaid)
+- Filter by Delivery Type (All / Standard / Express)
+- Filter by Payment Method (All / Cash / Online)
 
-isAdmin()
-    → reads role from localStorage, checks if "ADMIN"
+**Table columns:**
+Invoice ID · Parcel ID · Company · Sender→Receiver · Weight · Distance · Type · Total · Method · Status · Date · View button
 
-getToken()
-    → returns raw JWT string for the interceptor
-```
+---
 
-### 6.2 `AuthInterceptor` — Auto Token Attachment
-```
-Every HTTP request Angular makes:
-    │
-    ├── AuthInterceptor.intercept() runs
-    ├── Gets token from AuthService
-    ├── Clones the request and adds header:
-    │       Authorization: Bearer eyJhbGci...
-    └── Passes modified request to backend
-```
-This means you never manually add the token in any service call — it's automatic.
+### 7.9 Frontend — Invoice Service
 
-### 6.3 `AuthGuard` — Route Protection
-```
-User tries to navigate to /home, /view-parcels, etc.
-    │
-    ├── AuthGuard.canActivate() runs
-    ├── Checks AuthService.isAuthenticated()
-    │       → checks localStorage for token
-    ├── Token exists? → allow navigation
-    └── No token?    → redirect to /login
-```
-
-### 6.4 `RoleGuard` — Admin Route Protection
-```
-User tries to navigate to /add-parcel or /add-company
-    │
-    ├── RoleGuard.canActivate() runs
-    ├── Reads route.data["roles"] → ["ADMIN"]
-    ├── Gets user role from localStorage
-    ├── Role matches? → allow navigation
-    └── Role doesn't match? → redirect to /home
-```
-
-### 6.5 Route Configuration
 ```typescript
-{ path: '',            component: LandingComponent }           // public
-{ path: 'login',       component: LoginComponent }             // public
-{ path: 'register',    component: RegisterComponent }          // public
-{ path: 'home',        canActivate: [AuthGuard] }              // logged in
-{ path: 'view-parcels',canActivate: [AuthGuard] }              // logged in
-{ path: 'add-parcel',  canActivate: [AuthGuard, RoleGuard],
-                       data: { roles: ['ADMIN'] } }            // admin only
-{ path: 'add-company', canActivate: [AuthGuard, RoleGuard],
-                       data: { roles: ['ADMIN'] } }            // admin only
+// Generate invoice for a parcel
+generate(parcelId, distance, deliveryType, paymentMethod)
+  → POST /api/invoice/generate/{parcelId}
+
+// Fetch existing invoice
+getByParcelId(parcelId)
+  → GET /api/invoice/{parcelId}
+
+// Admin: all invoices
+getAll()
+  → GET /api/invoice/all
+
+// Mark as paid
+markAsPaid(invoiceId, paymentMethod)
+  → PUT /api/invoice/pay/{invoiceId}
+```
+
+All calls go through `AuthInterceptor` which automatically attaches the JWT token.
+
+---
+
+### 7.10 How Invoice Fits Into the Full Flow
+
+```
+Admin logs in
+      │
+      ▼
+View Parcels → Search for a parcel
+      │
+      ▼
+Click "Invoice" button on any row
+      │
+      ▼
+/invoice/:parcelId
+      │
+      ├── Invoice exists? → Show invoice card
+      │
+      └── No invoice? → Show generate form
+                │
+                ▼
+          Enter distance + delivery type + payment method
+                │
+                ▼
+          POST /api/invoice/generate/{parcelId}
+                │
+                ▼
+          InvoiceService calculates price
+                │
+                ▼
+          Invoice saved to DB
+                │
+                ▼
+          Invoice card displayed with full breakdown
+                │
+                ▼
+          Admin clicks "Mark as Paid"
+                │
+                ▼
+          PUT /api/invoice/pay/{invoiceId}
+                │
+                ▼
+          Status updates to PAID ✅
 ```
 
 ---
 
-## 7. COMPLETE REQUEST LIFECYCLE (Frontend → Backend)
+### 7.11 Key Design Decisions
 
-```
-Example: Admin adds a parcel
-
-1. ANGULAR FORM
-   User fills Add Parcel form → clicks Submit
-   AddParcelComponent.onSubmit()
-
-2. ANGULAR SERVICE
-   ParcelService.addParcel(companyId, payload)
-   → HttpClient.post("http://localhost:4004/parcels/1", payload)
-
-3. HTTP INTERCEPTOR
-   AuthInterceptor intercepts the request
-   → Adds header: Authorization: Bearer eyJhbGci...
-
-4. BACKEND — JwtFilter
-   Reads Authorization header
-   → Strips "Bearer " prefix
-   → JwtUtil.isTokenValid(token) → verifies HMAC signature
-   → JwtUtil.isTokenExpired(token) → checks exp claim
-   → JwtUtil.extractUsername(token) → gets "admin@bliss.com"
-   → CustomUserDetailsService.loadUserByUsername("admin@bliss.com")
-   → Sets Authentication in SecurityContextHolder
-
-5. BACKEND — SecurityConfig
-   Checks: POST /parcels/** → requires ROLE_ADMIN
-   User has ROLE_ADMIN → ALLOWED
-
-6. BACKEND — Controller
-   ParcelController.addParcel(companyId, parcel)
-
-7. BACKEND — Service
-   ParcelService.addParcel()
-   → Check if parcelId already exists (409 if yes)
-   → Find company by companyId (404 if not found)
-   → Set bookingDate = today
-   → Calculate deliveryCharge
-   → parcelRepository.save(parcel)
-
-8. BACKEND — Response
-   Returns 201 Created with saved Parcel JSON
-
-9. ANGULAR
-   AddParcelComponent receives success
-   → Shows "Parcel added successfully!" inline message
-   → Resets form
-```
+| Decision | Reason |
+|----------|--------|
+| `@OneToOne` between Invoice and Parcel | Each parcel has exactly one invoice — enforced at DB level with `unique = true` |
+| Idempotent generate endpoint | Calling generate twice returns the existing invoice instead of creating a duplicate |
+| Pricing calculated server-side | Client cannot manipulate prices — all calculation happens in `InvoiceService` |
+| No PDF generation | Invoice is rendered entirely in Angular — clean, fast, printable via browser |
+| ADMIN-only access | Invoice data is sensitive billing info — `SecurityConfig` enforces `ROLE_ADMIN` on all `/api/invoice/**` routes |
+| Enums for DeliveryType, PaymentStatus, PaymentMethod | Type-safe, stored as strings in DB, validated at compile time |
+| Weight copied to Invoice at generation time | Parcel weight could change later — invoice captures the value at billing time |
 
 ---
 
-## 8. DATA MODELS
+### 7.12 Questions Your Team Lead May Ask
 
-### CourierCompany
-```
-companyId (PK, String)
-companyName
-serviceType          → "Domestic" or "International"
-headquartersLocation
-contactNumber
-rating
-```
+**Q: Why is the invoice endpoint separate from the parcel endpoint?**
+Separation of concerns. Parcel management and billing are different domains. Keeping them separate makes each controller focused and easier to test or extend independently.
 
-### Parcel
-```
-parcelId (PK, String)
-trackingNumber
-senderName
-receiverName
-destinationCity
-weight (Double)
-serviceType          → "Domestic" or "International"
-deliveryStatus       → "Pending" | "In Transit" | "Delivered" | "Cancelled"
-bookingDate          → auto-set to today on creation
-deliveredDate        → optional
-deliveryCharge       → auto-calculated:
-                        Domestic:      50 + (weight × 10)
-                        International: 200 + (weight × 25)
-courierCompany (FK)  → ManyToOne → CourierCompany
-```
+**Q: What happens if someone calls generate twice for the same parcel?**
+The service checks `invoiceRepository.existsByParcel_ParcelId(parcelId)` first. If an invoice already exists, it returns the existing one without creating a new record. This makes the endpoint idempotent.
 
-### AppUser
-```
-id (PK, auto-increment)
-email (unique)
-password (BCrypt hashed)
-role → "ROLE_ADMIN" or "ROLE_USER"
-```
+**Q: How is the pricing protected from client-side manipulation?**
+The client only sends `distance`, `deliveryType`, and `paymentMethod`. All price calculations happen exclusively in `InvoiceService` on the server. The client never sends any price values.
+
+**Q: How does the `@OneToOne` relationship work in JPA?**
+`Invoice` has a `@OneToOne` annotation pointing to `Parcel` with `@JoinColumn(name = "parcel_id", unique = true)`. JPA creates a `parcel_id` foreign key column in the `invoice` table. The `unique = true` constraint at the DB level ensures no two invoices can reference the same parcel.
+
+**Q: Why use enums for DeliveryType and PaymentStatus?**
+Enums prevent invalid values from being stored. `@Enumerated(EnumType.STRING)` stores them as readable strings (`"EXPRESS"`, `"PAID"`) in MySQL rather than ordinal integers, making the DB data human-readable and safe from reordering bugs.
+
+**Q: How does the frontend know whether to show the generate form or the invoice?**
+`InvoiceComponent` calls `getByParcelId()` on load. If the backend returns 404, it means no invoice exists yet and the generate form is shown. If 200, the invoice card is shown directly.
+
+**Q: How is the "Mark as Paid" secured?**
+The `PUT /api/invoice/pay/{invoiceId}` endpoint is under `/api/invoice/**` which is mapped to `hasRole("ADMIN")` in `SecurityConfig`. Even if a USER somehow calls this URL, Spring Security rejects it with 403 Forbidden before the controller is reached.
 
 ---
 
-## 9. API ENDPOINTS
+## 8. API Reference
 
-### Auth (Public)
-| Method | URL | Description |
-|--------|-----|-------------|
-| POST | /auth/register | Register new user |
-| POST | /auth/login | Login, returns JWT |
+### Auth
+| Method | URL | Auth | Body |
+|--------|-----|------|------|
+| POST | `/auth/register` | None | `{email, password, role}` |
+| POST | `/auth/login` | None | `{email, password}` |
 
-### Parcels (Protected)
-| Method | URL | Role | Description |
+### Parcels
+| Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | /parcels/{companyId} | ADMIN | Add parcel |
-| GET | /parcels/{parcelId} | ALL | Get by ID |
-| GET | /parcels/tracking/{trackingNumber} | ALL | Get by tracking |
-| PUT | /parcels/{parcelId}/{status} | ADMIN | Update status |
-| GET | /parcels/destination/{city} | ALL | Filter by city |
-| GET | /parcels/status/{status} | ALL | Filter by status |
-| GET | /parcels/company/{companyName} | ALL | Filter by company |
-| GET | /parcels/serviceType/{type}?fromDate=&toDate= | ALL | Filter by type + date |
-| GET | /parcels/bookedAfter/{date} | ALL | Booked after date |
-| GET | /parcels/weight/{weight} | ALL | Weight greater than |
-| GET | /parcels/filter?destinationCity=&deliveryStatus= | ALL | Combined filter |
+| POST | `/parcels/{companyId}` | ADMIN | Add parcel |
+| GET | `/parcels/{parcelId}` | ALL | Get by ID |
+| GET | `/parcels/tracking/{trackingNumber}` | ALL | Get by tracking |
+| PUT | `/parcels/{parcelId}/{status}` | ADMIN | Update status |
+| GET | `/parcels/destination/{city}` | ALL | Filter by city |
+| GET | `/parcels/status/{status}` | ALL | Filter by status |
+| GET | `/parcels/company/{companyName}` | ALL | Filter by company |
+| GET | `/parcels/serviceType/{type}?fromDate=&toDate=` | ALL | Filter by type + date |
+| GET | `/parcels/bookedAfter/{date}` | ALL | Booked after date |
+| GET | `/parcels/weight/{weight}` | ALL | Weight greater than |
+| GET | `/parcels/filter?destinationCity=&deliveryStatus=` | ALL | Combined filter |
 
-### Companies (Protected)
-| Method | URL | Role | Description |
+### Invoice
+| Method | URL | Auth | Description |
 |--------|-----|------|-------------|
-| POST | /companies | ADMIN | Add company |
-| GET | /companies | ALL | View all |
-| GET | /companies/{id} | ALL | View by ID |
+| POST | `/api/invoice/generate/{parcelId}` | ADMIN | Generate invoice |
+| GET | `/api/invoice/{parcelId}` | ADMIN | Get invoice by parcel |
+| GET | `/api/invoice/all` | ADMIN | All invoices |
+| PUT | `/api/invoice/pay/{invoiceId}` | ADMIN | Mark as paid |
 
 ---
 
-## 10. EXPECTED INTERVIEW / PRESENTATION QUESTIONS
+## 9. Database Schema
 
-### Q1: What is JWT and why did you use it?
-**Answer:** JWT (JSON Web Token) is a compact, self-contained token for securely transmitting information between parties. I used it because:
-- It is **stateless** — the server doesn't store sessions, the token carries all info
-- It is **signed** with HMAC-SHA256, so the server can verify it wasn't tampered with
-- It works perfectly with REST APIs and Angular SPAs
-- It contains the user's email and role, so the server knows who is making the request without a DB lookup every time
+```
+app_user
+  id (PK, auto)
+  email (unique)
+  password (BCrypt)
+  role
 
----
+courier_company
+  company_id (PK)
+  company_name
+  headquarters_location
+  contact_number
+  rating
+  service_type
 
-### Q2: How does the JWT token get verified on every request?
-**Answer:** Through `JwtFilter` which extends `OncePerRequestFilter`:
-1. Reads the `Authorization` header
-2. Strips the `Bearer ` prefix
-3. Calls `JwtUtil.isTokenValid()` — this re-signs the token with the secret key and compares signatures
-4. Calls `JwtUtil.isTokenExpired()` — checks the `exp` claim
-5. Extracts the username and loads the user from DB
-6. Sets the `Authentication` object in `SecurityContextHolder`
-7. Spring Security then checks the role against the URL rules in `SecurityConfig`
+parcel
+  parcel_id (PK)
+  tracking_number
+  sender_name
+  receiver_name
+  destination_city
+  weight
+  service_type
+  delivery_status
+  booking_date
+  delivered_date
+  delivery_charge
+  courier_company_company_id (FK → courier_company)
 
----
-
-### Q3: What is BCrypt and why not store plain text passwords?
-**Answer:** BCrypt is a password hashing function. It:
-- Adds a random **salt** before hashing, so two identical passwords produce different hashes
-- Is intentionally **slow** (configurable rounds), making brute-force attacks expensive
-- Is **one-way** — you can never reverse a BCrypt hash back to the original password
-- Spring's `BCryptPasswordEncoder.matches(raw, hashed)` is used during login to compare
-
-Plain text passwords are never stored because if the database is compromised, all user passwords would be exposed immediately.
-
----
-
-### Q4: What is the difference between Authentication and Authorization?
-**Answer:**
-- **Authentication** = Who are you? → Verified at login by checking email + BCrypt password
-- **Authorization** = What can you do? → Checked on every request by `SecurityConfig` rules
-
-In this project:
-- Authentication happens in `AuthController.login()` via `AuthenticationManager`
-- Authorization happens in `SecurityConfig` — GET is allowed for USER and ADMIN, POST/PUT/DELETE only for ADMIN
-
----
-
-### Q5: What is CSRF and why is it disabled?
-**Answer:** CSRF (Cross-Site Request Forgery) is an attack where a malicious site tricks a logged-in user's browser into making unwanted requests. It is a risk when using **cookie-based sessions** because browsers automatically send cookies.
-
-In this project, CSRF is disabled because:
-- We use **JWT in the Authorization header**, not cookies
-- Browsers do NOT automatically send custom headers to other sites
-- So CSRF attacks are not possible with this setup
+invoice
+  id (PK, auto)
+  parcel_id (FK → parcel, UNIQUE)   ← one invoice per parcel
+  weight
+  distance
+  delivery_type
+  base_price
+  weight_charge
+  distance_charge
+  delivery_charge
+  total_amount
+  payment_status
+  payment_method
+  created_at
+```
 
 ---
 
-### Q6: What is CORS and why is it configured?
-**Answer:** CORS (Cross-Origin Resource Sharing) is a browser security policy that blocks requests from a different origin (domain/port). Angular runs on `localhost:4200` and Spring Boot on `localhost:4004` — different ports = different origins.
+## 10. Role-Based Access Control
 
-Without CORS config, the browser would block all API calls. The `CorsConfigurationSource` bean in `SecurityConfig` explicitly allows:
-- Origin: `http://localhost:4200`
-- Methods: GET, POST, PUT, DELETE, OPTIONS
-- Headers: all
+### Backend (Spring Security)
 
----
+```java
+// SecurityConfig.java
+.requestMatchers("/auth/**").permitAll()
+.requestMatchers("/api/invoice/**").hasRole("ADMIN")
+.requestMatchers(HttpMethod.GET, "/**").hasAnyRole("ADMIN", "USER")
+.requestMatchers(HttpMethod.POST, "/**").hasRole("ADMIN")
+.requestMatchers(HttpMethod.PUT, "/**").hasRole("ADMIN")
+.requestMatchers(HttpMethod.DELETE, "/**").hasRole("ADMIN")
+```
 
-### Q7: What is SecurityContextHolder?
-**Answer:** It is Spring Security's in-memory store for the current request's authentication. When `JwtFilter` validates a token, it creates a `UsernamePasswordAuthenticationToken` and stores it in `SecurityContextHolder`. For the rest of that request's lifecycle, Spring Security reads from here to know who the user is and what roles they have. It is cleared after each request because sessions are stateless.
+### Frontend (Angular Guards)
 
----
+```
+Route: /invoice/:parcelId  → canActivate: [AuthGuard, RoleGuard]  data: { roles: ['ADMIN'] }
+Route: /invoices           → canActivate: [AuthGuard, RoleGuard]  data: { roles: ['ADMIN'] }
+Route: /add-parcel         → canActivate: [AuthGuard, RoleGuard]  data: { roles: ['ADMIN'] }
+Route: /add-company        → canActivate: [AuthGuard, RoleGuard]  data: { roles: ['ADMIN'] }
+Route: /home               → canActivate: [AuthGuard]
+Route: /view-parcels       → canActivate: [AuthGuard]
+```
 
-### Q8: How does role-based access work end to end?
-**Answer:**
-
-**Backend:**
-- `SecurityConfig` maps HTTP methods to roles: `POST → ROLE_ADMIN`
-- When a request comes in, Spring reads the `Authentication` from `SecurityContextHolder`
-- It checks if the user's `GrantedAuthority` list contains the required role
-- If not → 403 Forbidden with a custom JSON error response
-
-**Frontend:**
-- `RoleGuard` checks `localStorage` for the user's role before allowing navigation
-- If a USER tries to go to `/add-parcel`, `RoleGuard` redirects them to `/home`
-- Even if they bypass the guard, the backend will reject the API call with 403
+**Double protection:** Even if a user bypasses the Angular guard (e.g. by directly calling the API), Spring Security on the backend will reject the request with `403 Forbidden`.
 
 ---
 
-### Q9: What happens if the JWT token expires?
-**Answer:**
-- `JwtUtil.isTokenExpired()` checks the `exp` claim in the token payload
-- `JwtFilter` will not set the `Authentication` in `SecurityContextHolder`
-- The request reaches `SecurityConfig` with no authentication
-- Spring returns 401 Unauthorized with the message "Missing or invalid JWT"
-- On the Angular side, the user would need to log in again (token is 1 hour by default)
+## 11. Frontend Architecture
+
+### Component Flow
+
+```
+AppComponent (shell — navbar + router-outlet)
+│
+├── LandingComponent      /              public
+├── LoginComponent        /login         public
+├── RegisterComponent     /register      public
+│
+├── HomeComponent         /home          AuthGuard
+├── ViewCompaniesComponent /view-companies AuthGuard
+├── ViewParcelsComponent  /view-parcels  AuthGuard
+│
+├── AddCompanyComponent   /add-company   AuthGuard + RoleGuard(ADMIN)
+├── AddParcelComponent    /add-parcel    AuthGuard + RoleGuard(ADMIN)
+├── InvoiceComponent      /invoice/:id   AuthGuard + RoleGuard(ADMIN)
+└── AllInvoicesComponent  /invoices      AuthGuard + RoleGuard(ADMIN)
+```
+
+### HTTP Request Lifecycle
+
+```
+Component calls Service
+    → Service calls HttpClient
+        → AuthInterceptor adds Authorization: Bearer <token>
+            → Request hits Spring Boot
+                → JwtFilter validates token
+                    → SecurityConfig checks role
+                        → Controller handles request
+                            → Service layer executes business logic
+                                → Repository queries MySQL
+                                    → Response flows back to Angular
+```
 
 ---
 
-### Q10: Why is the session set to STATELESS?
-**Answer:** `SessionCreationPolicy.STATELESS` tells Spring Security to never create or use an HTTP session. This is correct for JWT-based APIs because:
-- The token itself carries all authentication info
-- No server memory is used for sessions
-- The API can scale horizontally (multiple servers) without session sharing
-- Each request is fully self-contained
-
----
-
-### Q11: What is OncePerRequestFilter?
-**Answer:** It is a Spring base class that guarantees the filter runs exactly once per HTTP request, even in complex filter chains or request forwarding scenarios. `JwtFilter` extends it so the token validation logic runs once and only once per incoming request.
-
----
-
-### Q12: How does the Angular interceptor work?
-**Answer:** `AuthInterceptor` implements `HttpInterceptor`. Angular's `HttpClient` passes every outgoing request through all registered interceptors. The interceptor:
-1. Gets the JWT from `AuthService.getToken()` (reads localStorage)
-2. Clones the request (HTTP requests are immutable)
-3. Adds the `Authorization: Bearer <token>` header to the clone
-4. Passes the cloned request to `next.handle()`
-
-This means every API call automatically has the token — no manual header management needed anywhere.
-
----
-
-## 11. TECHNOLOGY DECISIONS — WHY THESE CHOICES
-
-| Decision | Why |
-|---|---|
-| JWT over Sessions | Stateless, scalable, works with SPAs |
-| BCrypt over MD5/SHA | Salted, slow by design, industry standard |
-| Spring Security | Battle-tested, integrates with Spring Boot seamlessly |
-| Stateless sessions | No server memory for sessions, horizontally scalable |
-| CORS config | Required for Angular (different port) to call Spring API |
-| Role prefix ROLE_ | Spring Security convention — `hasRole("ADMIN")` internally checks for `ROLE_ADMIN` |
-| OncePerRequestFilter | Prevents double-execution of JWT validation |
-| Custom error handler | Returns clean JSON instead of Spring's default HTML error page |
-
----
-
-## 12. QUICK REFERENCE — KEY CLASSES
-
-| Class | Package | Purpose |
-|---|---|---|
-| `SecurityConfig` | security.config | Defines all security rules, CORS, session policy |
-| `JwtUtil` | security.jwt | Creates and validates JWT tokens |
-| `JwtFilter` | security.jwt | Intercepts requests, validates token, sets auth context |
-| `CustomUserDetailsService` | security.service | Loads user from DB for Spring Security |
-| `AuthController` | security.controller | /auth/register and /auth/login endpoints |
-| `AppUser` | security.model | User entity stored in DB |
-| `UserRepository` | security.repository | DB queries for AppUser |
-| `AuthService` | Angular service | Manages token in localStorage |
-| `AuthInterceptor` | Angular interceptor | Attaches token to every HTTP request |
-| `AuthGuard` | Angular guard | Blocks unauthenticated route access |
-| `RoleGuard` | Angular guard | Blocks non-admin route access |
-
----
-
-*Good luck with your presentation!*
+*Bliss Courier — Built with Spring Boot & Angular*
