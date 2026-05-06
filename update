@@ -1,0 +1,8 @@
+  <div class="hero-actions">
+        <button class="btn-primary" routerLink="/add-parcel" *ngIf="authService.isAdmin()">
+          <i class="bi bi-plus-circle"></i> Add Parcel
+        </button>
+        <button class="btn-ghost" routerLink="/view-parcels">
+          <i class="bi bi-search"></i> Track Parcel
+        </button>
+      </div>
